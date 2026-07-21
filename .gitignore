@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# Project output / models / cache
+output/
+exports/
+models/
+.agents/
+
+# Test data / local images (optional if heavy)
+pendiing-images-test/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

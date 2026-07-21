@@ -1,0 +1,1 @@
+"""VehicleVisionOCR extraction pipeline."""
