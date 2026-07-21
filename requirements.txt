@@ -1,5 +1,5 @@
 --find-links https://www.paddlepaddle.org.cn/whl/windows/mkl/avx/stable.html
-paddlepaddle-gpu==2.6.1.post120
+paddlepaddle-gpu>=2.6.1
 paddleocr==2.8.1
 opencv-python>=4.10.0
 numpy>=1.26.0
