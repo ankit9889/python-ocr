@@ -21,9 +21,25 @@ def extract_vin(ocr_items: list[dict]) -> dict | None:
             check = validate_vin(normalized)
             if check["format_valid"]:
                 score = float(item["confidence"]) * 0.70 + (0.30 if check["iso_3779_valid"] else 0.20)
+                
+                # Heuristics to reject paint colors incorrectly matching the length of a VIN
+                text_upper = item["text"].upper()
+                is_color = any(word in text_upper for word in [
+                    "BLACK", "WHITE", "RED", "BLUE", "GREEN", "PURPLE", "GRAY", "GREY",
+                    "SILVER", "MICA", "METALLIC", "PEARL", "IGNEOUS"
+                ])
+                if is_color:
+                    score -= 0.50
+                if item["text"].strip().count(" ") >= 2:
+                    score -= 0.20
+                if sum(c.isdigit() for c in normalized) < 4:
+                    score -= 0.30
+
                 candidates.append((score, normalized, check, item))
+                
     if not candidates:
         return None
+        
     score, vin, validation, source = max(candidates, key=lambda candidate: candidate[0])
     status = "verified" if len(vin) == 17 else "detected"
     note = None if len(vin) == 17 else f"{len(vin)}-character chassis/VIN identifier; ISO-3779 check digit does not apply."

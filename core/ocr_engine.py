@@ -39,16 +39,9 @@ def _create_paddle_ocr(device: str) -> Any:
     from paddleocr import PaddleOCR
     return PaddleOCR(
         lang="en",
-        device=device,
-        use_doc_orientation_classify=True,
-        use_doc_unwarping=True,
-        use_textline_orientation=True,
-        text_det_limit_side_len=PADDLE_TEXT_DET_LIMIT_SIDE_LEN,
-        text_det_limit_type="max",
-        text_det_thresh=PADDLE_TEXT_DET_THRESH,
-        text_det_box_thresh=PADDLE_TEXT_DET_BOX_THRESH,
-        text_det_unclip_ratio=PADDLE_TEXT_DET_UNCLIP_RATIO,
-        text_rec_score_thresh=PADDLE_TEXT_REC_SCORE_THRESH,
+        use_angle_cls=True,
+        show_log=False,
+        use_gpu=(device == "gpu"),
     )
 
 
@@ -61,6 +54,9 @@ def _get_engine(preference: str | None = None) -> Any:
             try:
                 print("[OCR Engine] Attempting to initialize PaddleOCR on GPU (CUDA)...")
                 _engine = _create_paddle_ocr("gpu")
+                # Eagerly test the GPU with a dummy prediction to catch lazy-loading cuDNN errors
+                import numpy as np
+                _engine.ocr(np.zeros((10, 10, 3), dtype=np.uint8), cls=False)
                 _active_device = "gpu"
                 print("[OCR Engine] PaddleOCR successfully running on GPU.")
             except Exception as exc:
@@ -90,20 +86,22 @@ def set_device_preference(preference: str) -> None:
 
 
 def read(image) -> list[dict]:
-    # The official 3.x API exposes predict_iter for incremental processing;
-    # using it prevents result accumulation during large folder scans.
-    result = _get_engine().predict_iter(image)
+    # PaddleOCR 2.x API
+    result = _get_engine().ocr(image, cls=True)
     items: list[dict] = []
-    for page in result:
-        texts, scores = page.get("rec_texts", []), page.get("rec_scores", [])
-        boxes = page.get("rec_boxes", [])
-        for index, (text, score) in enumerate(zip(texts, scores)):
-            items.append({
-                "text": str(text),
-                "confidence": round(float(score), 4),
-                "box": (boxes[index].tolist() if hasattr(boxes[index], "tolist") else boxes[index])
-                if index < len(boxes) else None,
-            })
+    if not result or not result[0]:
+        return items
+    
+    for line in result[0]:
+        if not line:
+            continue
+        box = line[0]
+        text, score = line[1]
+        items.append({
+            "text": str(text),
+            "confidence": round(float(score), 4),
+            "box": box,
+        })
     return items
 
 

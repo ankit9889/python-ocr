@@ -14,7 +14,7 @@ VIN_MAX_LENGTH = 20
 VIN_PATTERN = rf"[A-HJ-NPR-Z0-9]{{{VIN_MIN_LENGTH},{VIN_MAX_LENGTH}}}"
 
 # Hardware & Acceleration settings ('auto', 'gpu', 'cpu')
-DEVICE_PREFERENCE = "auto"
+DEVICE_PREFERENCE = "gpu"
 
 # PaddleOCR 3.x settings tuned for small, dense vehicle identification labels.
 PADDLE_TEXT_DET_LIMIT_SIDE_LEN = 2048
