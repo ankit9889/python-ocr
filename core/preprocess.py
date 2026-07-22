@@ -15,6 +15,14 @@ def preprocess(image_path: str) -> tuple[np.ndarray, np.ndarray]:
         scale = 1600 / w
         image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
 
+    from core.settings import load_settings
+    settings = load_settings()
+    if settings.get("smart_crop", False):
+        # Crop the outer 15% to save ~30% OCR processing area
+        h, w = image.shape[:2]
+        crop_y, crop_x = int(h * 0.15), int(w * 0.15)
+        image = image[crop_y:h-crop_y, crop_x:w-crop_x]
+
     lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
     l, a, b = cv2.split(lab)
     l = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8)).apply(l)

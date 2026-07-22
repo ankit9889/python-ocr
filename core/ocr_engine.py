@@ -37,14 +37,28 @@ def detect_device(preference: str = DEVICE_PREFERENCE) -> str:
 
 def _create_paddle_ocr(device: str) -> Any:
     from paddleocr import PaddleOCR
-    return PaddleOCR(
-        lang="en",
-        use_angle_cls=False,  # Disabling angle classifier saves ~30% CPU time (labels are always horizontal)
-        show_log=False,
-        use_gpu=(device == "gpu"),
-        cpu_threads=2,  # Prevent thread thrashing on older 2-core processors like i3
-        enable_mkldnn=True,  # Accelerate CPU inference using Intel Math Kernel Library
-    )
+    from core.settings import load_settings
+    settings = load_settings()
+    
+    kwargs = {
+        "lang": "en",
+        "use_angle_cls": False,
+        "show_log": False,
+        "use_gpu": (device == "gpu"),
+        "cpu_threads": 2,
+        "enable_mkldnn": True,
+    }
+    
+    engine = settings.get("engine", "default")
+    if engine == "onnx":
+        kwargs["use_onnx"] = True
+    elif engine == "openvino":
+        kwargs["use_openvino"] = True
+        
+    if settings.get("batching", False):
+        kwargs["rec_batch_num"] = 12
+        
+    return PaddleOCR(**kwargs)
 
 
 def _get_engine(preference: str | None = None) -> Any:

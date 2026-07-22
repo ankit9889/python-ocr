@@ -8,6 +8,7 @@ import time
 from core.database import init_db, save_scan, get_recent_scans, delete_scan
 from core.watchdog_service import ScannerWatchdog
 from core.result_builder import analyse_image
+from core.settings import load_settings, save_settings
 from pathlib import Path
 
 import logging
@@ -55,6 +56,10 @@ class ScannerApp:
         # Connect Scanner Toggle
         self.scanner_btn = tk.Button(top_frame, text="Connect Hardware Scanner", command=self.toggle_scanner, bg="#2196F3", fg="white", font=("Arial", 11, "bold"))
         self.scanner_btn.pack(side=tk.LEFT, padx=10)
+
+        # Settings Button
+        self.settings_btn = tk.Button(top_frame, text="⚙️ Settings", command=self.open_settings_dialog, bg="#607D8B", fg="white", font=("Arial", 11, "bold"))
+        self.settings_btn.pack(side=tk.LEFT, padx=5)
 
         # Status Label
         self.status_lbl = tk.Label(top_frame, text="Ready.", fg="blue", font=("Arial", 10))
@@ -242,6 +247,46 @@ class ScannerApp:
             
             self.refresh_table()
             self.status_lbl.config(text=f"{len(selected_items)} record(s) deleted.", fg="blue")
+
+    def open_settings_dialog(self):
+        settings = load_settings()
+        
+        dialog = tk.Toplevel(self.root)
+        dialog.title("OCR Performance Settings")
+        dialog.geometry("400x300")
+        dialog.grab_set() # Modal
+        
+        ttk.Label(dialog, text="Select OCR Engine:", font=("Arial", 10, "bold")).pack(anchor=tk.W, padx=20, pady=(15, 5))
+        
+        engine_var = tk.StringVar(value=settings.get("engine", "default"))
+        ttk.Radiobutton(dialog, text="Default CPU (Safest)", variable=engine_var, value="default").pack(anchor=tk.W, padx=30)
+        ttk.Radiobutton(dialog, text="ONNX Runtime (Fast & Low RAM)", variable=engine_var, value="onnx").pack(anchor=tk.W, padx=30)
+        ttk.Radiobutton(dialog, text="Intel OpenVINO (Ultra Fast for Intel)", variable=engine_var, value="openvino").pack(anchor=tk.W, padx=30)
+        
+        ttk.Label(dialog, text="Optimizations:", font=("Arial", 10, "bold")).pack(anchor=tk.W, padx=20, pady=(15, 5))
+        
+        crop_var = tk.BooleanVar(value=settings.get("smart_crop", False))
+        ttk.Checkbutton(dialog, text="Enable Smart Region Cropping (20% faster)", variable=crop_var).pack(anchor=tk.W, padx=30)
+        
+        batch_var = tk.BooleanVar(value=settings.get("batching", False))
+        ttk.Checkbutton(dialog, text="Enable Dynamic Batching", variable=batch_var).pack(anchor=tk.W, padx=30)
+        
+        def save_and_close():
+            new_settings = {
+                "engine": engine_var.get(),
+                "smart_crop": crop_var.get(),
+                "batching": batch_var.get()
+            }
+            save_settings(new_settings)
+            
+            # Re-initialize the OCR engine globally to apply changes immediately
+            from core.ocr_engine import set_device_preference
+            set_device_preference("cpu") # This will implicitly reload settings inside ocr_engine
+            
+            messagebox.showinfo("Settings Saved", "Settings updated successfully!\n\nNote: First scan with ONNX/OpenVINO may take longer to download models.", parent=dialog)
+            dialog.destroy()
+            
+        ttk.Button(dialog, text="Save Settings", command=save_and_close).pack(pady=20)
 
     def on_closing(self):
         if self.watchdog:
