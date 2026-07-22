@@ -76,11 +76,21 @@ class ScannerApp:
         self.tree.column("time_s", width=100, anchor=tk.CENTER)
         self.tree.column("image", width=250, anchor=tk.W)
 
+        # Bind Ctrl+A to select all
+        self.tree.bind("<Control-a>", self.select_all)
+        self.tree.bind("<Control-A>", self.select_all)
+
         # Scrollbar
         scrollbar = ttk.Scrollbar(bottom_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscroll=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.tree.pack(fill=tk.BOTH, expand=True)
+
+    def select_all(self, event):
+        """Selects all rows in the Treeview."""
+        self.tree.selection_set(self.tree.get_children())
+        return "break" # Prevent default behavior
+
 
     def refresh_table(self):
         # Clear existing
