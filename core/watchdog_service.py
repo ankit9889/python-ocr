@@ -43,7 +43,7 @@ class ZebraScannerHandler(FileSystemEventHandler):
                 vin_val = vin.get("value") if vin else ""
                 
                 color = result.get("color", {})
-                color_val = color.get("value") if color else ""
+                color_val = color.get("description") or color.get("value") or ""
                 
                 save_scan(file_path, vin_val, color_val)
                 
