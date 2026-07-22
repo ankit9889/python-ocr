@@ -76,3 +76,15 @@ def get_recent_scans(limit: int = 50):
     except Exception as e:
         logger.error(f"Failed to fetch recent scans: {e}")
         return []
+
+def delete_scan(scan_id: int):
+    """Deletes a scan record from the database by ID."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM scans WHERE id = ?', (scan_id,))
+        conn.commit()
+        conn.close()
+        logger.info(f"Deleted scan ID {scan_id} from DB.")
+    except Exception as e:
+        logger.error(f"Failed to delete scan ID {scan_id}: {e}")
