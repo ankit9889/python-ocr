@@ -50,15 +50,14 @@ def start_zebra_listener():
         # DispatchWithEvents allows us to listen to scanner triggers
         cc = win32com.client.DispatchWithEvents("CoreScanner.CoreScanner", ZebraScannerEvents)
         
-        # Open connection: appType=0, scannerTypes=[1] (SNAPI), count=1
-        status = [0]
-        cc.Open(0, [1], 1, status)
+        # Open connection: appType=0, scannerTypes=(1,) (SNAPI), count=1
+        # In win32com, out parameters shouldn't be lists. 
+        cc.Open(0, (1,), 1, 0)
         
         # Register for events: 1 = Barcode, 2 = Image
         # Opcode 1001 is REGISTER_FOR_EVENTS
         in_xml = "<inArgs><cmdArgs><arg-int>2</arg-int><arg-int>1,2</arg-int></cmdArgs></inArgs>"
-        out_xml = [""]
-        cc.ExecCommand(1001, in_xml, out_xml, status)
+        cc.ExecCommand(1001, in_xml, "", 0)
         
         print("Connected to Zebra Scanner in SNAPI mode!")
         print(f"Waiting for you to pull the trigger... (Images will Auto-Save to {SAVE_DIR})")
