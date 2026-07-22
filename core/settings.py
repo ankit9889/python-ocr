@@ -7,7 +7,8 @@ SETTINGS_FILE = Path(__file__).resolve().parent.parent / "settings.json"
 DEFAULT_SETTINGS = {
     "engine": "default", # "default", "onnx", or "openvino"
     "smart_crop": False,
-    "batching": False
+    "batching": False,
+    "angle_classifier": False
 }
 
 def load_settings() -> dict:

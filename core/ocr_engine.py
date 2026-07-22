@@ -35,14 +35,14 @@ def detect_device(preference: str = DEVICE_PREFERENCE) -> str:
     return "cpu"
 
 
-def _create_paddle_ocr(device: str) -> Any:
+def _create_paddle_ocr(device: str, force_default: bool = False) -> Any:
     from paddleocr import PaddleOCR
     from core.settings import load_settings
     settings = load_settings()
     
     kwargs = {
         "lang": "en",
-        "use_angle_cls": False,
+        "use_angle_cls": settings.get("angle_classifier", False),
         "show_log": False,
         "use_gpu": (device == "gpu"),
         "cpu_threads": 2,
@@ -50,9 +50,24 @@ def _create_paddle_ocr(device: str) -> Any:
     }
     
     engine = settings.get("engine", "default")
-    if engine == "onnx":
+    if not force_default and engine == "onnx":
+        # Convert models to ONNX using paddle2onnx automatically if missing
+        import os, subprocess
+        home = os.path.expanduser('~')
+        for mtype, mname in [('det', 'en_PP-OCRv3_det_infer'), ('rec', 'en_PP-OCRv4_rec_infer')]:
+            mdir = os.path.join(home, '.paddleocr', 'whl', mtype, 'en', mname)
+            onnx_path = os.path.join(mdir, 'model.onnx')
+            if os.path.exists(mdir) and not os.path.exists(onnx_path):
+                print(f"[OCR Engine] Automatically converting {mtype} model to ONNX...")
+                try:
+                    subprocess.run(
+                        ['.\\.venv\\Scripts\\paddle2onnx', '--model_dir', mdir, '--model_filename', 'inference.pdmodel', '--params_filename', 'inference.pdiparams', '--save_file', onnx_path],
+                        check=True, capture_output=True
+                    )
+                except Exception as e:
+                    print(f"Error converting {mtype} to ONNX: {e}")
         kwargs["use_onnx"] = True
-    elif engine == "openvino":
+    elif not force_default and engine == "openvino":
         kwargs["use_openvino"] = True
         
     if settings.get("batching", False):
@@ -66,6 +81,13 @@ def _get_engine(preference: str | None = None) -> Any:
     if _engine is None:
         target_pref = preference or DEVICE_PREFERENCE
         target_device = detect_device(target_pref)
+        
+        # Ensure base models are downloaded BEFORE initializing ONNX/OpenVINO
+        from core.settings import load_settings
+        if load_settings().get("engine") in ["onnx", "openvino"]:
+            print("[OCR Engine] Ensuring base models are downloaded...")
+            _create_paddle_ocr("cpu", force_default=True)
+            
         if target_device == "gpu":
             try:
                 print("[OCR Engine] Attempting to initialize PaddleOCR on GPU (CUDA)...")

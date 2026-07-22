@@ -271,11 +271,15 @@ class ScannerApp:
         batch_var = tk.BooleanVar(value=settings.get("batching", False))
         ttk.Checkbutton(dialog, text="Enable Dynamic Batching", variable=batch_var).pack(anchor=tk.W, padx=30)
         
+        angle_var = tk.BooleanVar(value=settings.get("angle_classifier", False))
+        ttk.Checkbutton(dialog, text="Enable Angle Classifier (Fixes warning but 30% slower)", variable=angle_var).pack(anchor=tk.W, padx=30)
+        
         def save_and_close():
             new_settings = {
                 "engine": engine_var.get(),
                 "smart_crop": crop_var.get(),
-                "batching": batch_var.get()
+                "batching": batch_var.get(),
+                "angle_classifier": angle_var.get()
             }
             save_settings(new_settings)
             
