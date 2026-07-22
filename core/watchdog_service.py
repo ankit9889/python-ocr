@@ -11,10 +11,13 @@ from core.database import save_scan
 
 logger = logging.getLogger(__name__)
 
+from concurrent.futures import ThreadPoolExecutor
+
 class ZebraScannerHandler(FileSystemEventHandler):
     def __init__(self, callback=None):
         self.callback = callback
         self.processing = set()
+        self.executor = ThreadPoolExecutor(max_workers=1)
 
     def on_created(self, event):
         if event.is_directory:
@@ -62,8 +65,8 @@ class ZebraScannerHandler(FileSystemEventHandler):
                 if file_path in self.processing:
                     self.processing.remove(file_path)
 
-        # Run in background to not block watchdog
-        threading.Thread(target=run_processing, daemon=True).start()
+        # Run sequentially in background to not block watchdog, but prevent CPU starvation from multiple OCR threads
+        self.executor.submit(run_processing)
 
 
 class ScannerWatchdog:
