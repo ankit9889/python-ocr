@@ -82,6 +82,12 @@ def _create_paddle_ocr(device: str, force_default: bool = False) -> Any:
                         [bin_path, '--model_dir', mdir, '--model_filename', 'inference.pdmodel', '--params_filename', 'inference.pdiparams', '--save_file', onnx_path],
                         check=True, capture_output=True
                     )
+                except subprocess.CalledProcessError as e:
+                    print(f"Error converting to ONNX: {e}")
+                    if e.stderr:
+                        print("Details:", e.stderr.decode('utf-8', errors='ignore'))
+                    if e.stdout:
+                        print("Output:", e.stdout.decode('utf-8', errors='ignore'))
                 except Exception as e:
                     print(f"Error converting to ONNX: {e}")
                     
