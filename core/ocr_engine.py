@@ -47,6 +47,15 @@ def _create_paddle_ocr(device: str, force_default: bool = False) -> Any:
         "use_gpu": (device == "gpu"),
         "cpu_threads": 2,
         "enable_mkldnn": True,
+        "det_limit_side_len": PADDLE_TEXT_DET_LIMIT_SIDE_LEN,
+        "det_limit_type": "max",
+        "det_thresh": PADDLE_TEXT_DET_THRESH,
+        "det_box_thresh": PADDLE_TEXT_DET_BOX_THRESH,
+        "det_unclip_ratio": PADDLE_TEXT_DET_UNCLIP_RATIO,
+        "rec_score_thresh": PADDLE_TEXT_REC_SCORE_THRESH,
+        "use_doc_orientation_classify": True,
+        "use_doc_unwarping": True,
+        "use_textline_orientation": True,
     }
     
     engine = settings.get("engine", "default")
