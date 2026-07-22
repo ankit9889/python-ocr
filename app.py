@@ -3,6 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 import threading
 import os
 import sys
+import time
 
 from core.database import init_db, save_scan, get_recent_scans, delete_scan
 from core.watchdog_service import ScannerWatchdog
@@ -59,18 +60,20 @@ class ScannerApp:
         bottom_frame = tk.Frame(self.root)
         bottom_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
-        columns = ("id", "timestamp", "vin", "color", "image")
+        columns = ("id", "timestamp", "vin", "color", "time_s", "image")
         self.tree = ttk.Treeview(bottom_frame, columns=columns, show="headings")
         self.tree.heading("id", text="ID")
         self.tree.heading("timestamp", text="Time")
         self.tree.heading("vin", text="VIN")
         self.tree.heading("color", text="Color")
+        self.tree.heading("time_s", text="Scan Time (s)")
         self.tree.heading("image", text="Image Path")
 
         self.tree.column("id", width=50, anchor=tk.CENTER)
         self.tree.column("timestamp", width=150, anchor=tk.CENTER)
-        self.tree.column("vin", width=200, anchor=tk.CENTER)
-        self.tree.column("color", width=200, anchor=tk.CENTER)
+        self.tree.column("vin", width=180, anchor=tk.CENTER)
+        self.tree.column("color", width=180, anchor=tk.CENTER)
+        self.tree.column("time_s", width=100, anchor=tk.CENTER)
         self.tree.column("image", width=250, anchor=tk.W)
 
         # Scrollbar
@@ -92,6 +95,7 @@ class ScannerApp:
                 scan["timestamp"],
                 scan["vin"],
                 scan["color"],
+                f"{scan.get('processing_time', 0.0):.2f}",
                 os.path.basename(scan["image_path"])
             ))
 
@@ -100,7 +104,8 @@ class ScannerApp:
         self.root.after(0, self._update_ui_after_scan, result)
 
     def _update_ui_after_scan(self, result):
-        self.status_lbl.config(text=f"Last Scan: {result['vin']} - {result['color']}", fg="green")
+        time_str = f" in {result.get('processing_time', 0.0):.2f}s" if 'processing_time' in result else ""
+        self.status_lbl.config(text=f"Last Scan: {result['vin']} - {result['color']}{time_str}", fg="green")
         self.refresh_table()
 
     def toggle_scanner(self):
@@ -146,7 +151,9 @@ class ScannerApp:
             self.root.after(0, lambda f=file_path: self.status_lbl.config(text=f"Processing {os.path.basename(f)}... ({len(self.upload_queue)} left)", fg="orange"))
             
             try:
+                start_time = time.time()
                 result = analyse_image(Path(file_path))
+                processing_time = time.time() - start_time
                 
                 vin = result.get("vin", {})
                 vin_val = vin.get("value") if vin else ""
@@ -154,12 +161,13 @@ class ScannerApp:
                 color = result.get("color", {})
                 color_val = color.get("description") or color.get("value") or ""
                 
-                save_scan(file_path, vin_val, color_val)
+                save_scan(file_path, vin_val, color_val, processing_time)
                 
                 self.on_scan_completed({
                     "image_path": file_path,
                     "vin": vin_val,
-                    "color": color_val
+                    "color": color_val,
+                    "processing_time": processing_time
                 })
             except Exception as e:
                 logger.error(f"Error processing {file_path}: {e}")

@@ -37,7 +37,9 @@ class ZebraScannerHandler(FileSystemEventHandler):
                 time.sleep(1.0)
                 logger.info(f"Watchdog picked up new image: {file_path}")
                 
+                start_time = time.time()
                 result = analyse_image(Path(file_path))
+                processing_time = time.time() - start_time
                 
                 vin = result.get("vin", {})
                 vin_val = vin.get("value") if vin else ""
@@ -45,13 +47,14 @@ class ZebraScannerHandler(FileSystemEventHandler):
                 color = result.get("color", {})
                 color_val = color.get("description") or color.get("value") or ""
                 
-                save_scan(file_path, vin_val, color_val)
+                save_scan(file_path, vin_val, color_val, processing_time)
                 
                 if self.callback:
                     self.callback({
                         "image_path": file_path,
                         "vin": vin_val,
-                        "color": color_val
+                        "color": color_val,
+                        "processing_time": processing_time
                     })
             except Exception as e:
                 logger.error(f"Error processing image {file_path}: {e}")
