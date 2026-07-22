@@ -287,7 +287,6 @@ class ScannerApp:
             from core.ocr_engine import set_device_preference
             set_device_preference("cpu") # This will implicitly reload settings inside ocr_engine
             
-            messagebox.showinfo("Settings Saved", "Settings updated successfully!\n\nNote: First scan with ONNX/OpenVINO may take longer to download models.", parent=dialog)
             dialog.destroy()
             
         ttk.Button(dialog, text="Save Settings", command=save_and_close).pack(pady=20)

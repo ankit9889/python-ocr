@@ -71,8 +71,12 @@ def _create_paddle_ocr(device: str, force_default: bool = False) -> Any:
             if os.path.exists(mdir) and not os.path.exists(onnx_path):
                 print(f"[OCR Engine] Automatically converting model in {mdir} to ONNX...")
                 try:
+                    import sys
+                    bin_path = os.path.join(os.path.dirname(sys.executable), 'paddle2onnx')
+                    if os.name == 'nt' and not bin_path.endswith('.exe'):
+                        bin_path += '.exe'
                     subprocess.run(
-                        ['.\\.venv\\Scripts\\paddle2onnx', '--model_dir', mdir, '--model_filename', 'inference.pdmodel', '--params_filename', 'inference.pdiparams', '--save_file', onnx_path],
+                        [bin_path, '--model_dir', mdir, '--model_filename', 'inference.pdmodel', '--params_filename', 'inference.pdiparams', '--save_file', onnx_path],
                         check=True, capture_output=True
                     )
                 except Exception as e:
