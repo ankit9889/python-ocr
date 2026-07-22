@@ -10,34 +10,25 @@ import threading
 SAVE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "live_scans")
 
 class ZebraScannerEvents:
-    def OnImageEvent(self, eventType, scanData):
+    def OnImageEvent(self, eventType, size, imageFormat, sfsaImageData, pScannerData):
         """Triggered automatically by the Zebra scanner when an image is captured."""
-        print("\n[Zebra] Image captured! Processing...")
+        print("\n[Zebra] Image captured! Saving to disk...")
         try:
-            # Parse the XML data from the scanner
-            root = ET.fromstring(scanData)
+            # sfsaImageData is a memoryview of the raw image bytes (JPEG format)
+            image_bytes = bytes(sfsaImageData)
             
-            # The image data is usually in <imagedata> as a HEX string
-            image_data_hex = root.find('.//imagedata')
+            os.makedirs(SAVE_DIR, exist_ok=True)
+            filename = os.path.join(SAVE_DIR, f"zebra_scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg")
             
-            if image_data_hex is not None and image_data_hex.text:
-                # Convert HEX string back to binary image bytes
-                image_bytes = bytes.fromhex(image_data_hex.text)
+            with open(filename, "wb") as f:
+                f.write(image_bytes)
                 
-                os.makedirs(SAVE_DIR, exist_ok=True)
-                filename = os.path.join(SAVE_DIR, f"zebra_scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg")
-                
-                with open(filename, "wb") as f:
-                    f.write(image_bytes)
-                    
-                print(f"[Zebra] Successfully saved image to: {filename}")
-            else:
-                print("[Zebra] Error: No image data found in the scanner event.")
+            print(f"[Zebra] Successfully saved image to: {filename}")
                 
         except Exception as e:
             print(f"[Zebra] Error saving image: {e}")
 
-    def OnBarcodeEvent(self, eventType, scanData):
+    def OnBarcodeEvent(self, *args):
         print("[Zebra] Barcode scanned (ignored for image capture mode).")
 
 def start_zebra_listener():
