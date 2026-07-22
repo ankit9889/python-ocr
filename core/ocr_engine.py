@@ -54,19 +54,24 @@ def _create_paddle_ocr(device: str, force_default: bool = False) -> Any:
         # Convert models to ONNX using paddle2onnx automatically if missing
         import os, subprocess
         home = os.path.expanduser('~')
-        for mtype, mname in [('det', 'en_PP-OCRv3_det_infer'), ('rec', 'en_PP-OCRv4_rec_infer')]:
-            mdir = os.path.join(home, '.paddleocr', 'whl', mtype, 'en', mname)
+        det_dir = os.path.join(home, '.paddleocr', 'whl', 'det', 'en', 'en_PP-OCRv3_det_infer')
+        rec_dir = os.path.join(home, '.paddleocr', 'whl', 'rec', 'en', 'en_PP-OCRv4_rec_infer')
+        
+        for mdir in [det_dir, rec_dir]:
             onnx_path = os.path.join(mdir, 'model.onnx')
             if os.path.exists(mdir) and not os.path.exists(onnx_path):
-                print(f"[OCR Engine] Automatically converting {mtype} model to ONNX...")
+                print(f"[OCR Engine] Automatically converting model in {mdir} to ONNX...")
                 try:
                     subprocess.run(
                         ['.\\.venv\\Scripts\\paddle2onnx', '--model_dir', mdir, '--model_filename', 'inference.pdmodel', '--params_filename', 'inference.pdiparams', '--save_file', onnx_path],
                         check=True, capture_output=True
                     )
                 except Exception as e:
-                    print(f"Error converting {mtype} to ONNX: {e}")
+                    print(f"Error converting to ONNX: {e}")
+                    
         kwargs["use_onnx"] = True
+        kwargs["det_model_dir"] = os.path.join(det_dir, 'model.onnx')
+        kwargs["rec_model_dir"] = os.path.join(rec_dir, 'model.onnx')
     elif not force_default and engine == "openvino":
         kwargs["use_openvino"] = True
         
