@@ -25,7 +25,6 @@ def analyse_image(path: Path) -> dict:
     requires_retry = (
         primary_vin is None
         or primary_vin["confidence"] < 0.80
-        or primary_color.get("description") is None
     )
     if requires_retry:
         additional_items = read_views(views[1:])

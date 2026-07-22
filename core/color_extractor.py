@@ -65,6 +65,20 @@ def extract_color(image: np.ndarray, ocr_items: list[dict] | None = None) -> dic
                 description = format_paint_text(raw_text)
                 break
             else:
+                from difflib import get_close_matches
+                # Try fuzzy matching for small typos (e.g. S1LVER instead of SILVER)
+                fuzzy_matched = False
+                for w in words:
+                    if len(w) >= 3:
+                        close = get_close_matches(w, _COLOR_WORDS.keys(), n=1, cutoff=0.75)
+                        if close:
+                            name = _COLOR_WORDS[close[0]]
+                            description = format_paint_text(raw_text)
+                            fuzzy_matched = True
+                            break
+                if fuzzy_matched:
+                    break
+                
                 formatted = format_paint_text(raw_text)
                 formatted_words = {w.upper() for w in formatted.split()}
                 sub_matches = {_COLOR_WORDS[w] for w in formatted_words if w in _COLOR_WORDS}
