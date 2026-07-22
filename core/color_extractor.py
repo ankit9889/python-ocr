@@ -52,10 +52,12 @@ def extract_color(image: np.ndarray, ocr_items: list[dict] | None = None) -> dic
         candidates = [item for item in ocr_items if sum(ch.isalpha() for ch in item["text"]) >= 3]
         std_colors = {"BLACK", "WHITE", "RED", "BLUE", "GREEN", "YELLOW", "ORANGE", "PURPLE", "GRAY", "GREY", "SILVER", "BROWN"}
 
+        import re
         for item in reversed(candidates):
             raw_text = item["text"].strip()
             text_upper = raw_text.upper()
-            words = {w.strip(" ,.-").upper() for w in text_upper.split()}
+            # Split by space, comma, dot, and hyphen
+            words = {w.upper() for w in re.split(r'[\s,\.\-]+', text_upper) if w}
             matches = {_COLOR_WORDS[w] for w in words if w in _COLOR_WORDS}
 
             if len(matches) >= 1:
@@ -80,7 +82,7 @@ def extract_color(image: np.ndarray, ocr_items: list[dict] | None = None) -> dic
                     break
                 
                 formatted = format_paint_text(raw_text)
-                formatted_words = {w.upper() for w in formatted.split()}
+                formatted_words = {w.upper() for w in re.split(r'[\s,\.\-]+', formatted) if w}
                 sub_matches = {_COLOR_WORDS[w] for w in formatted_words if w in _COLOR_WORDS}
                 if len(sub_matches) >= 1:
                     color_matches = [w for w in formatted_words if w in _COLOR_WORDS]
