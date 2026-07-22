@@ -75,6 +75,9 @@ def _create_paddle_ocr(device: str, force_default: bool = False) -> Any:
                     bin_path = os.path.join(os.path.dirname(sys.executable), 'paddle2onnx')
                     if os.name == 'nt' and not bin_path.endswith('.exe'):
                         bin_path += '.exe'
+                    if not os.path.exists(bin_path):
+                        print(f"Error: paddle2onnx is not installed. Please run: pip install paddle2onnx")
+                        raise FileNotFoundError(f"{bin_path} not found")
                     subprocess.run(
                         [bin_path, '--model_dir', mdir, '--model_filename', 'inference.pdmodel', '--params_filename', 'inference.pdiparams', '--save_file', onnx_path],
                         check=True, capture_output=True
