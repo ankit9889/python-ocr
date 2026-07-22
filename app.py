@@ -44,9 +44,13 @@ class ScannerApp:
         self.upload_btn = tk.Button(top_frame, text="Upload Images", command=self.upload_images, bg="#4CAF50", fg="white", font=("Arial", 11, "bold"))
         self.upload_btn.pack(side=tk.LEFT, padx=10)
 
+        # Select All Button
+        self.select_all_btn = tk.Button(top_frame, text="Select All/None", command=self.toggle_select_all, font=("Arial", 11, "bold"))
+        self.select_all_btn.pack(side=tk.LEFT, padx=5)
+
         # Delete Button
-        self.delete_btn = tk.Button(top_frame, text="Delete Selected", command=self.delete_selected, bg="#F44336", fg="white", font=("Arial", 11, "bold"))
-        self.delete_btn.pack(side=tk.LEFT, padx=10)
+        self.delete_btn = tk.Button(top_frame, text="Delete Checked", command=self.delete_selected, bg="#F44336", fg="white", font=("Arial", 11, "bold"))
+        self.delete_btn.pack(side=tk.LEFT, padx=5)
 
         # Connect Scanner Toggle
         self.scanner_btn = tk.Button(top_frame, text="Connect Hardware Scanner", command=self.toggle_scanner, bg="#2196F3", fg="white", font=("Arial", 11, "bold"))
@@ -60,8 +64,9 @@ class ScannerApp:
         bottom_frame = tk.Frame(self.root)
         bottom_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
-        columns = ("id", "timestamp", "vin", "color", "time_s", "image")
+        columns = ("chk", "id", "timestamp", "vin", "color", "time_s", "image")
         self.tree = ttk.Treeview(bottom_frame, columns=columns, show="headings")
+        self.tree.heading("chk", text="[ ]")
         self.tree.heading("id", text="ID")
         self.tree.heading("timestamp", text="Time")
         self.tree.heading("vin", text="VIN")
@@ -69,6 +74,7 @@ class ScannerApp:
         self.tree.heading("time_s", text="Scan Time (s)")
         self.tree.heading("image", text="Image Path")
 
+        self.tree.column("chk", width=40, anchor=tk.CENTER)
         self.tree.column("id", width=50, anchor=tk.CENTER)
         self.tree.column("timestamp", width=150, anchor=tk.CENTER)
         self.tree.column("vin", width=180, anchor=tk.CENTER)
@@ -76,9 +82,10 @@ class ScannerApp:
         self.tree.column("time_s", width=100, anchor=tk.CENTER)
         self.tree.column("image", width=250, anchor=tk.W)
 
-        # Bind Ctrl+A to select all
-        self.tree.bind("<Control-a>", self.select_all)
-        self.tree.bind("<Control-A>", self.select_all)
+        # Bind Click for Checkboxes and Ctrl+A
+        self.tree.bind("<ButtonRelease-1>", self.on_tree_click)
+        self.tree.bind("<Control-a>", self.select_all_shortcut)
+        self.tree.bind("<Control-A>", self.select_all_shortcut)
 
         # Scrollbar
         scrollbar = ttk.Scrollbar(bottom_frame, orient=tk.VERTICAL, command=self.tree.yview)
@@ -86,11 +93,42 @@ class ScannerApp:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.tree.pack(fill=tk.BOTH, expand=True)
 
-    def select_all(self, event):
-        """Selects all rows in the Treeview."""
-        self.tree.selection_set(self.tree.get_children())
-        return "break" # Prevent default behavior
+    def on_tree_click(self, event):
+        region = self.tree.identify("region", event.x, event.y)
+        if region == "cell":
+            column = self.tree.identify_column(event.x)
+            if column == "#1":  # The 'chk' column
+                item = self.tree.identify_row(event.y)
+                if item:
+                    values = list(self.tree.item(item, "values"))
+                    # Toggle checkbox
+                    if values[0] == "[ ]":
+                        values[0] = "[x]"
+                    else:
+                        values[0] = "[ ]"
+                    self.tree.item(item, values=values)
 
+    def toggle_select_all(self):
+        """Toggle all checkboxes."""
+        all_checked = True
+        for item in self.tree.get_children():
+            if self.tree.item(item, "values")[0] == "[ ]":
+                all_checked = False
+                break
+        
+        new_val = "[ ]" if all_checked else "[x]"
+        for item in self.tree.get_children():
+            values = list(self.tree.item(item, "values"))
+            values[0] = new_val
+            self.tree.item(item, values=values)
+
+    def select_all_shortcut(self, event):
+        """Ctrl+A sets all checkboxes to checked."""
+        for item in self.tree.get_children():
+            values = list(self.tree.item(item, "values"))
+            values[0] = "[x]"
+            self.tree.item(item, values=values)
+        return "break"
 
     def refresh_table(self):
         # Clear existing
@@ -101,6 +139,7 @@ class ScannerApp:
         scans = get_recent_scans()
         for scan in scans:
             self.tree.insert("", tk.END, values=(
+                "[ ]",
                 scan["id"],
                 scan["timestamp"],
                 scan["vin"],
@@ -187,20 +226,22 @@ class ScannerApp:
         self.root.after(0, lambda: self.status_lbl.config(text="Processing complete.", fg="green"))
 
     def delete_selected(self):
-        selected_items = self.tree.selection()
+        # Get items where checkbox column is "[x]"
+        selected_items = [item for item in self.tree.get_children() if self.tree.item(item, "values")[0] == "[x]"]
+        
         if not selected_items:
-            messagebox.showwarning("Warning", "Please select a record to delete.")
+            messagebox.showwarning("Warning", "Please check at least one record to delete (click the [ ] column).")
             return
         
-        confirm = messagebox.askyesno("Confirm Delete", "Are you sure you want to delete the selected scan(s)?")
+        confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete {len(selected_items)} checked scan(s)?")
         if confirm:
             for item in selected_items:
                 values = self.tree.item(item, 'values')
-                scan_id = int(values[0])
+                scan_id = int(values[1])  # column index 1 is now ID
                 delete_scan(scan_id)
             
             self.refresh_table()
-            self.status_lbl.config(text="Record(s) deleted.", fg="blue")
+            self.status_lbl.config(text=f"{len(selected_items)} record(s) deleted.", fg="blue")
 
     def on_closing(self):
         if self.watchdog:
