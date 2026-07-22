@@ -39,9 +39,11 @@ def _create_paddle_ocr(device: str) -> Any:
     from paddleocr import PaddleOCR
     return PaddleOCR(
         lang="en",
-        use_angle_cls=True,
+        use_angle_cls=False,  # Disabling angle classifier saves ~30% CPU time (labels are always horizontal)
         show_log=False,
         use_gpu=(device == "gpu"),
+        cpu_threads=2,  # Prevent thread thrashing on older 2-core processors like i3
+        enable_mkldnn=True,  # Accelerate CPU inference using Intel Math Kernel Library
     )
 
 
