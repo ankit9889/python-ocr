@@ -8,13 +8,19 @@ def preprocess(image_path: str) -> tuple[np.ndarray, np.ndarray]:
     image = cv2.imread(image_path)
     if image is None:
         raise ValueError(f"Cannot read image: {image_path}")
-    # Preserve colour for paint analysis; create a high-local-contrast OCR view.
+    # Preserve colour for paint analysis
+    # For extremely large images (e.g., manual uploads > 1600px), downscale immediately to save CPU time on older processors
+    h, w = image.shape[:2]
+    if w > 1600:
+        scale = 1600 / w
+        image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+
     lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
     l, a, b = cv2.split(lab)
     l = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8)).apply(l)
     
-    # Fast L-channel denoising instead of slow Colored denoising
-    l_denoised = cv2.fastNlMeansDenoising(l, None, 5, 7, 21)
+    # Ultra-fast median blur instead of NLMeans (saves 4-15 seconds on old CPUs)
+    l_denoised = cv2.medianBlur(l, 3)
     denoised = cv2.cvtColor(cv2.merge((l_denoised, a, b)), cv2.COLOR_LAB2BGR)
     
     blurred = cv2.GaussianBlur(denoised, (0, 0), 1.2)
