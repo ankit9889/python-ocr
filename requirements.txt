@@ -10,4 +10,4 @@ watchdog>=4.0.0
 pywin32>=306
 onnxruntime
 openvino
-paddle2onnx
+paddle2onnx==1.0.9
