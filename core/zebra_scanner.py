@@ -168,14 +168,14 @@ class ZebraScannerManager:
     def disable_scanner(self):
         if not self.ccore or not self.is_connected:
             return False
-        in_xml = f"<inArgs><scannerID>{self.scanner_id}</scannerID></inArgs>"
+        in_xml = f"<inArgs><scannerID>{self.scanner_id}</scannerID><cmdArgs></cmdArgs></inArgs>"
         self.command_queue.put({"type": "opcode", "opcode": 2013, "in_xml": in_xml})
         return True
 
     def enable_scanner(self):
         if not self.ccore or not self.is_connected:
             return False
-        in_xml = f"<inArgs><scannerID>{self.scanner_id}</scannerID></inArgs>"
+        in_xml = f"<inArgs><scannerID>{self.scanner_id}</scannerID><cmdArgs></cmdArgs></inArgs>"
         self.command_queue.put({"type": "opcode", "opcode": 2014, "in_xml": in_xml})
         return True
 
