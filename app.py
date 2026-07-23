@@ -60,6 +60,11 @@ class ScannerApp:
         self.scanner_btn = tk.Button(top_frame, text="Connect Hardware Scanner", command=self.toggle_scanner, bg="#2196F3", fg="white", font=("Arial", 11, "bold"))
         self.scanner_btn.pack(side=tk.LEFT, padx=10)
 
+        # Lock/Unlock Toggle
+        self.is_hardware_locked = False
+        self.scanner_lock_btn = tk.Button(top_frame, text="🔒 Lock Scanner", command=self.toggle_hardware_lock, bg="#FF5722", fg="white", font=("Arial", 11, "bold"))
+        self.scanner_lock_btn.pack(side=tk.LEFT, padx=5)
+
         # Settings Button
         self.settings_btn = tk.Button(top_frame, text="⚙️ Settings", command=self.open_settings_dialog, bg="#607D8B", fg="white", font=("Arial", 11, "bold"))
         self.settings_btn.pack(side=tk.LEFT, padx=5)
@@ -238,6 +243,24 @@ class ScannerApp:
                 messagebox.showwarning("Scanner Not Ready", "Hardware scanner is not connected or COM object not ready.\\nPlease make sure 123Scan is closed and SDK is installed.")
             else:
                 self.status_lbl.config(text=f"Tested beep: {selected}", fg="green")
+
+    def toggle_hardware_lock(self):
+        if not self.is_hardware_locked:
+            success = scanner_manager.disable_scanner()
+            if success:
+                self.is_hardware_locked = True
+                self.scanner_lock_btn.config(text="🔓 Unlock Scanner", bg="#4CAF50")
+                self.status_lbl.config(text="Scanner Locked Manually.", fg="red")
+            else:
+                messagebox.showwarning("Error", "Could not lock scanner. SDK not connected.")
+        else:
+            success = scanner_manager.enable_scanner()
+            if success:
+                self.is_hardware_locked = False
+                self.scanner_lock_btn.config(text="🔒 Lock Scanner", bg="#FF5722")
+                self.status_lbl.config(text="Scanner Unlocked Manually.", fg="green")
+            else:
+                messagebox.showwarning("Error", "Could not unlock scanner. SDK not connected.")
 
     def upload_images(self):
         file_paths = filedialog.askopenfilenames(
