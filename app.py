@@ -31,6 +31,12 @@ class ScannerApp:
         self.is_scanner_connected = False
         self.upload_queue = []
         self.is_processing = False
+        
+        self.latest_hardware_vin = ""
+        self.key_buffer = ""
+        
+        # Bind global key events for Zebra Scanner HID input
+        self.root.bind("<Key>", self.on_key_press)
 
         # Build UI
         self.build_ui()
@@ -158,9 +164,28 @@ class ScannerApp:
                 os.path.basename(scan["image_path"])
             ))
 
+    def on_key_press(self, event):
+        """Captures keyboard input from the Zebra scanner (acts as a keyboard)."""
+        # Ignore modifier keys and other non-characters
+        if event.char:
+            if event.keysym == "Return":
+                # Scanner finished typing the barcode and pressed Enter
+                if self.key_buffer:
+                    self.latest_hardware_vin = self.key_buffer.strip()
+                    logger.info(f"Hardware Scanner captured VIN: {self.latest_hardware_vin}")
+                    self.status_lbl.config(text=f"Hardware VIN Scanned: {self.latest_hardware_vin}", fg="blue")
+                    self.key_buffer = ""
+            else:
+                self.key_buffer += event.char
+
     def on_scan_completed(self, result):
-        # Update UI thread-safely
-        self.root.after(0, self._update_ui_after_scan, result)
+        # This is called by watchdog_service in a background thread
+        self.handle_processed_scan(
+            result["image_path"],
+            result["vin"],
+            result["color"],
+            result["processing_time"]
+        )
 
     def _update_ui_after_scan(self, result):
         time_str = f" in {result.get('processing_time', 0.0):.2f}s" if 'processing_time' in result else ""
@@ -212,6 +237,50 @@ class ScannerApp:
         self.root.after(0, _ask)
         return result_q.get()
 
+    def handle_processed_scan(self, file_path, vin_val, color_val, processing_time):
+        should_save = True
+        existing_scan_id = check_vin_exists(vin_val) if vin_val else None
+        
+        # Get hardware vin from the global scanner buffer
+        hardware_vin_val = self.latest_hardware_vin
+        # Reset the buffer for the next scan
+        self.latest_hardware_vin = ""
+        
+        if existing_scan_id:
+            # Duplicate VIN Beep
+            winsound.Beep(700, 200)
+            winsound.Beep(700, 200)
+            ans = self.ask_yes_no_threadsafe(
+                "Duplicate VIN Detected",
+                f"The VIN '{vin_val}' is already in the database.\n\nDo you want to update the existing record with this new scan?\n\n(Yes = Update latest data, No = Cancel / Next Scan)"
+            )
+            if ans:
+                update_scan(existing_scan_id, file_path, color_val, processing_time, hardware_vin_val)
+                should_save = False
+            else:
+                should_save = False
+        
+        if should_save:
+            save_scan(file_path, vin_val, color_val, processing_time, hardware_vin_val)
+        
+        # Check color beep condition after saving or updating
+        if (should_save or (existing_scan_id and ans)):
+            if not color_val:
+                # Color is empty Beep
+                winsound.Beep(1200, 600)
+            else:
+                # Successful scan Beep
+                winsound.Beep(2500, 150)
+        
+        if should_save or (existing_scan_id and ans):
+            # Update UI thread-safely
+            self.root.after(0, self._update_ui_after_scan, {
+                "image_path": file_path,
+                "vin": vin_val,
+                "color": color_val,
+                "processing_time": processing_time
+            })
+
     def process_queue(self):
         while self.upload_queue:
             file_path = self.upload_queue.pop(0)
@@ -228,42 +297,8 @@ class ScannerApp:
                 color = result.get("color", {})
                 color_val = color.get("description") or color.get("value") or ""
                 
-                should_save = True
-                existing_scan_id = check_vin_exists(vin_val) if vin_val else None
+                self.handle_processed_scan(file_path, vin_val, color_val, processing_time)
                 
-                if existing_scan_id:
-                    # Duplicate VIN Beep
-                    winsound.Beep(700, 200)
-                    winsound.Beep(700, 200)
-                    ans = self.ask_yes_no_threadsafe(
-                        "Duplicate VIN Detected",
-                        f"The VIN '{vin_val}' is already in the database.\n\nDo you want to update the existing record with this new scan?\n\n(Yes = Update latest data, No = Cancel / Next Scan)"
-                    )
-                    if ans:
-                        update_scan(existing_scan_id, file_path, color_val, processing_time)
-                        should_save = False
-                    else:
-                        should_save = False
-                
-                if should_save:
-                    save_scan(file_path, vin_val, color_val, processing_time)
-                
-                # Check color beep condition after saving or updating
-                if (should_save or (existing_scan_id and ans)):
-                    if not color_val:
-                        # Color is empty Beep
-                        winsound.Beep(1200, 600)
-                    else:
-                        # Successful scan Beep
-                        winsound.Beep(2500, 150)
-                
-                if should_save or (existing_scan_id and ans):
-                    self.on_scan_completed({
-                        "image_path": file_path,
-                        "vin": vin_val,
-                        "color": color_val,
-                        "processing_time": processing_time
-                    })
             except Exception as e:
                 logger.error(f"Error processing {file_path}: {e}")
                 self.root.after(0, lambda err=e: messagebox.showerror("Error", f"Failed to process image:\n{err}"))

@@ -50,8 +50,6 @@ class ZebraScannerHandler(FileSystemEventHandler):
                 color = result.get("color", {})
                 color_val = color.get("description") or color.get("value") or ""
                 
-                save_scan(file_path, vin_val, color_val, processing_time)
-                
                 if self.callback:
                     self.callback({
                         "image_path": file_path,
