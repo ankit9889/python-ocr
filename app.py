@@ -1,11 +1,13 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import threading
+import queue
 import os
 import sys
 import time
+import winsound
 
-from core.database import init_db, save_scan, get_recent_scans, delete_scan
+from core.database import init_db, save_scan, get_recent_scans, delete_scan, check_vin_exists, update_scan
 from core.watchdog_service import ScannerWatchdog
 from core.result_builder import analyse_image
 from core.settings import load_settings, save_settings
@@ -202,6 +204,14 @@ class ScannerApp:
             self.is_processing = True
             threading.Thread(target=self.process_queue, daemon=True).start()
 
+    def ask_yes_no_threadsafe(self, title, message):
+        result_q = queue.Queue()
+        def _ask():
+            res = messagebox.askyesno(title, message)
+            result_q.put(res)
+        self.root.after(0, _ask)
+        return result_q.get()
+
     def process_queue(self):
         while self.upload_queue:
             file_path = self.upload_queue.pop(0)
@@ -218,14 +228,42 @@ class ScannerApp:
                 color = result.get("color", {})
                 color_val = color.get("description") or color.get("value") or ""
                 
-                save_scan(file_path, vin_val, color_val, processing_time)
+                should_save = True
+                existing_scan_id = check_vin_exists(vin_val) if vin_val else None
                 
-                self.on_scan_completed({
-                    "image_path": file_path,
-                    "vin": vin_val,
-                    "color": color_val,
-                    "processing_time": processing_time
-                })
+                if existing_scan_id:
+                    # Duplicate VIN Beep
+                    winsound.Beep(700, 200)
+                    winsound.Beep(700, 200)
+                    ans = self.ask_yes_no_threadsafe(
+                        "Duplicate VIN Detected",
+                        f"The VIN '{vin_val}' is already in the database.\n\nDo you want to update the existing record with this new scan?\n\n(Yes = Update latest data, No = Cancel / Next Scan)"
+                    )
+                    if ans:
+                        update_scan(existing_scan_id, file_path, color_val, processing_time)
+                        should_save = False
+                    else:
+                        should_save = False
+                
+                if should_save:
+                    save_scan(file_path, vin_val, color_val, processing_time)
+                
+                # Check color beep condition after saving or updating
+                if (should_save or (existing_scan_id and ans)):
+                    if not color_val:
+                        # Color is empty Beep
+                        winsound.Beep(1200, 600)
+                    else:
+                        # Successful scan Beep
+                        winsound.Beep(2500, 150)
+                
+                if should_save or (existing_scan_id and ans):
+                    self.on_scan_completed({
+                        "image_path": file_path,
+                        "vin": vin_val,
+                        "color": color_val,
+                        "processing_time": processing_time
+                    })
             except Exception as e:
                 logger.error(f"Error processing {file_path}: {e}")
                 self.root.after(0, lambda err=e: messagebox.showerror("Error", f"Failed to process image:\n{err}"))

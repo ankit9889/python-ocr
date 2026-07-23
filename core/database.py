@@ -87,6 +87,41 @@ def get_recent_scans(limit: int = 50):
         logger.error(f"Failed to fetch recent scans: {e}")
         return []
 
+def check_vin_exists(vin: str):
+    """Checks if a VIN exists and returns its ID."""
+    if not vin:
+        return None
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT id FROM scans WHERE vin = ? ORDER BY timestamp DESC LIMIT 1', (vin,))
+        row = cursor.fetchone()
+        conn.close()
+        return row[0] if row else None
+    except Exception as e:
+        logger.error(f"Failed to check VIN: {e}")
+        return None
+
+def update_scan(scan_id: int, image_path: str, color: str, processing_time: float = 0.0, hardware_vin: str = ""):
+    """Updates an existing scan."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        color_val = color if color else ""
+        hw_vin_val = hardware_vin if hardware_vin else ""
+        
+        cursor.execute('''
+            UPDATE scans 
+            SET timestamp = ?, image_path = ?, color = ?, processing_time = ?, hardware_vin = ?
+            WHERE id = ?
+        ''', (timestamp, image_path, color_val, processing_time, hw_vin_val, scan_id))
+        conn.commit()
+        conn.close()
+        logger.info(f"Scan updated in DB: ID={scan_id}")
+    except Exception as e:
+        logger.error(f"Failed to update scan DB: {e}")
+
 def delete_scan(scan_id: int):
     """Deletes a scan record from the database by ID."""
     try:
