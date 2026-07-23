@@ -8,7 +8,7 @@ import time
 import winsound
 
 from core.database import init_db, save_scan, get_recent_scans, delete_scan, check_vin_exists, update_scan
-from core.hardware_beeper import trigger_beep
+from core.zebra_scanner import trigger_beep, scanner_manager
 from core.watchdog_service import ScannerWatchdog
 from core.result_builder import analyse_image
 from core.settings import load_settings, save_settings
@@ -32,12 +32,6 @@ class ScannerApp:
         self.is_scanner_connected = False
         self.upload_queue = []
         self.is_processing = False
-        
-        self.latest_hardware_vin = ""
-        self.key_buffer = ""
-        
-        # Bind global key events for Zebra Scanner HID input
-        self.root.bind("<Key>", self.on_key_press)
 
         # Build UI
         self.build_ui()
@@ -165,20 +159,6 @@ class ScannerApp:
                 os.path.basename(scan["image_path"])
             ))
 
-    def on_key_press(self, event):
-        """Captures keyboard input from the Zebra scanner (acts as a keyboard)."""
-        # Ignore modifier keys and other non-characters
-        if event.char:
-            if event.keysym == "Return":
-                # Scanner finished typing the barcode and pressed Enter
-                if self.key_buffer:
-                    self.latest_hardware_vin = self.key_buffer.strip()
-                    logger.info(f"Hardware Scanner captured VIN: {self.latest_hardware_vin}")
-                    self.status_lbl.config(text=f"Hardware VIN Scanned: {self.latest_hardware_vin}", fg="blue")
-                    self.key_buffer = ""
-            else:
-                self.key_buffer += event.char
-
     def on_scan_completed(self, result):
         # This is called by watchdog_service in a background thread
         self.handle_processed_scan(
@@ -242,10 +222,8 @@ class ScannerApp:
         should_save = True
         existing_scan_id = check_vin_exists(vin_val) if vin_val else None
         
-        # Get hardware vin from the global scanner buffer
-        hardware_vin_val = self.latest_hardware_vin
-        # Reset the buffer for the next scan
-        self.latest_hardware_vin = ""
+        # Get hardware vin from the global scanner SDK manager
+        hardware_vin_val = scanner_manager.get_latest_hardware_vin()
         
         if existing_scan_id:
             # Duplicate VIN Beep
