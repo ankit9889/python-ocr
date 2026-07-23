@@ -8,6 +8,7 @@ import time
 import winsound
 
 from core.database import init_db, save_scan, get_recent_scans, delete_scan, check_vin_exists, update_scan
+from core.hardware_beeper import trigger_beep
 from core.watchdog_service import ScannerWatchdog
 from core.result_builder import analyse_image
 from core.settings import load_settings, save_settings
@@ -248,8 +249,7 @@ class ScannerApp:
         
         if existing_scan_id:
             # Duplicate VIN Beep
-            winsound.Beep(700, 200)
-            winsound.Beep(700, 200)
+            trigger_beep("duplicate")
             ans = self.ask_yes_no_threadsafe(
                 "Duplicate VIN Detected",
                 f"The VIN '{vin_val}' is already in the database.\n\nDo you want to update the existing record with this new scan?\n\n(Yes = Update latest data, No = Cancel / Next Scan)"
@@ -267,10 +267,10 @@ class ScannerApp:
         if (should_save or (existing_scan_id and ans)):
             if not color_val:
                 # Color is empty Beep
-                winsound.Beep(1200, 600)
+                trigger_beep("empty_color")
             else:
                 # Successful scan Beep
-                winsound.Beep(2500, 150)
+                trigger_beep("success")
         
         if should_save or (existing_scan_id and ans):
             # Update UI thread-safely
