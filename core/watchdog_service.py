@@ -62,6 +62,12 @@ class ZebraScannerHandler(FileSystemEventHandler):
             finally:
                 if file_path in self.processing:
                     self.processing.remove(file_path)
+                
+                try:
+                    from core.zebra_scanner import scanner_manager
+                    scanner_manager.enable_scanner()
+                except Exception as e:
+                    logger.error(f"Failed to enable scanner: {e}")
 
         # Run sequentially in background to not block watchdog, but prevent CPU starvation from multiple OCR threads
         self.executor.submit(run_processing)

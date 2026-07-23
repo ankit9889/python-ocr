@@ -281,6 +281,11 @@ class ScannerApp:
         })
 
     def process_queue(self):
+        try:
+            scanner_manager.disable_scanner()
+        except:
+            pass
+
         while self.upload_queue:
             file_path = self.upload_queue.pop(0)
             self.root.after(0, lambda f=file_path: self.status_lbl.config(text=f"Processing {os.path.basename(f)}... ({len(self.upload_queue)} left)", fg="orange"))
@@ -304,6 +309,11 @@ class ScannerApp:
         
         self.is_processing = False
         self.root.after(0, lambda: self.status_lbl.config(text="Processing complete.", fg="green"))
+        
+        try:
+            scanner_manager.enable_scanner()
+        except:
+            pass
 
     def delete_selected(self):
         # Get items where checkbox column is "[x]"

@@ -44,6 +44,9 @@ class ZebraEvents:
         """Triggered automatically by the Zebra scanner when an image is captured."""
         logger.info("\n[Zebra] Image captured! Saving to disk...")
         try:
+            # Disable scanner instantly to prevent double scans during processing
+            scanner_manager.disable_scanner()
+            
             # sfsaImageData is a memoryview of the raw image bytes (JPEG format)
             image_bytes = bytes(sfsaImageData)
             
@@ -135,6 +138,8 @@ class ZebraScannerManager:
                     cmd = self.command_queue.get_nowait()
                     if cmd["type"] == "beep":
                         self._execute_beep(cmd["beep_code"])
+                    elif cmd["type"] == "opcode":
+                        self._execute_opcode(cmd["opcode"], cmd["in_xml"])
                 except queue.Empty:
                     pass
                     
@@ -150,6 +155,26 @@ class ZebraScannerManager:
         # Clear it after reading so we don't accidentally reuse it
         LATEST_HARDWARE_VIN = ""
         return vin
+
+    def _execute_opcode(self, opcode, in_xml):
+        try:
+            self.ccore.ExecCommand(opcode, in_xml, "", 0)
+        except Exception as e:
+            logger.error(f"Failed to execute opcode {opcode} on COM thread: {e}")
+
+    def disable_scanner(self):
+        if not self.ccore or not self.is_connected:
+            return False
+        in_xml = f"<inArgs><scannerID>{self.scanner_id}</scannerID></inArgs>"
+        self.command_queue.put({"type": "opcode", "opcode": 2013, "in_xml": in_xml})
+        return True
+
+    def enable_scanner(self):
+        if not self.ccore or not self.is_connected:
+            return False
+        in_xml = f"<inArgs><scannerID>{self.scanner_id}</scannerID></inArgs>"
+        self.command_queue.put({"type": "opcode", "opcode": 2014, "in_xml": in_xml})
+        return True
 
     def _execute_beep(self, beep_code):
         try:
