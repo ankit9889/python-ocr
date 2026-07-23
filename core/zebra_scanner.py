@@ -44,9 +44,6 @@ class ZebraEvents:
                     self.last_barcode_time = current_time
                     logger.info("Requesting hardware to snap an image...")
                     scanner_manager.capture_image()
-                    # We can also disable the scanner here to stop further barcode decodes 
-                    # while we wait for the image, but we MUST do it after capturing.
-                    scanner_manager.disable_scanner()
         except Exception as e:
             logger.error(f"Error parsing OnBarcodeEvent XML: {e}")
 
