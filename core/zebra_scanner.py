@@ -2,10 +2,15 @@ import logging
 import threading
 import time
 import queue
+import os
+from datetime import datetime
 import xml.etree.ElementTree as ET
 import winsound
 
 logger = logging.getLogger(__name__)
+
+# Directory to save live scans
+SAVE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "live_scans")
 
 # Global state to hold the latest scanned barcode from the SDK
 LATEST_HARDWARE_VIN = ""
@@ -34,6 +39,24 @@ class ZebraEvents:
                 logger.info(f"Zebra SDK Extracted VIN: {LATEST_HARDWARE_VIN}")
         except Exception as e:
             logger.error(f"Error parsing OnBarcodeEvent XML: {e}")
+
+    def OnImageEvent(self, eventType, size, imageFormat, sfsaImageData, pScannerData):
+        """Triggered automatically by the Zebra scanner when an image is captured."""
+        logger.info("\n[Zebra] Image captured! Saving to disk...")
+        try:
+            # sfsaImageData is a memoryview of the raw image bytes (JPEG format)
+            image_bytes = bytes(sfsaImageData)
+            
+            os.makedirs(SAVE_DIR, exist_ok=True)
+            filename = os.path.join(SAVE_DIR, f"zebra_scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg")
+            
+            with open(filename, "wb") as f:
+                f.write(image_bytes)
+                
+            logger.info(f"[Zebra] Successfully saved image to: {filename}")
+                
+        except Exception as e:
+            logger.error(f"[Zebra] Error saving image: {e}")
 
 class ZebraScannerManager:
     def __init__(self):
@@ -89,16 +112,16 @@ class ZebraScannerManager:
                 logger.warning(f"Could not discover scanner ID, defaulting to 1: {e}")
             
             # Register for events (Opcode 1001)
-            # 1 = Barcode events
+            # 1 = Barcode, 2 = Image
             in_xml = """<inArgs>
                           <cmdArgs>
-                            <arg-int>1</arg-int>
-                            <arg-int>1</arg-int>
+                            <arg-int>2</arg-int>
+                            <arg-int>1,2</arg-int>
                           </cmdArgs>
                         </inArgs>"""
             try:
                 self.ccore.ExecCommand(1001, in_xml, "", 0)
-                logger.info("Successfully registered for Zebra SDK Barcode events.")
+                logger.info("Successfully registered for Zebra SDK Barcode and Image events.")
                 self.is_connected = True
             except Exception as e:
                 logger.error(f"Failed to register for events: {e}")
