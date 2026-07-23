@@ -5,7 +5,7 @@ from pathlib import Path
 SETTINGS_FILE = Path(__file__).resolve().parent.parent / "settings.json"
 
 DEFAULT_SETTINGS = {
-    "engine": "default", # "default", "onnx", or "openvino"
+    "engine": "onnx", # "default", "onnx", or "openvino"
     "smart_crop": False,
     "batching": False,
     "angle_classifier": False
