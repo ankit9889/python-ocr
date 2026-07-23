@@ -252,54 +252,33 @@ class ScannerApp:
             self.is_processing = True
             threading.Thread(target=self.process_queue, daemon=True).start()
 
-    def ask_yes_no_threadsafe(self, title, message):
-        result_q = queue.Queue()
-        def _ask():
-            res = messagebox.askyesno(title, message)
-            result_q.put(res)
-        self.root.after(0, _ask)
-        return result_q.get()
-
     def handle_processed_scan(self, file_path, vin_val, color_val, processing_time):
-        should_save = True
         existing_scan_id = check_vin_exists(vin_val) if vin_val else None
         
         # Get hardware vin from the global scanner SDK manager
         hardware_vin_val = scanner_manager.get_latest_hardware_vin()
         
         if existing_scan_id:
-            # Duplicate VIN Beep
+            # Duplicate VIN: Only Beep, Do Not Save, Do Not Ask
             trigger_beep("duplicate")
-            ans = self.ask_yes_no_threadsafe(
-                "Duplicate VIN Detected",
-                f"The VIN '{vin_val}' is already in the database.\n\nDo you want to update the existing record with this new scan?\n\n(Yes = Update latest data, No = Cancel / Next Scan)"
-            )
-            if ans:
-                update_scan(existing_scan_id, file_path, color_val, processing_time, hardware_vin_val)
-                should_save = False
-            else:
-                should_save = False
+            return
+            
+        if not color_val:
+            # Color is empty: Only Beep, Do Not Save
+            trigger_beep("empty_color")
+            return
+            
+        # If it reaches here, it's a completely successful new scan
+        save_scan(file_path, vin_val, color_val, processing_time, hardware_vin_val)
+        trigger_beep("success")
         
-        if should_save:
-            save_scan(file_path, vin_val, color_val, processing_time, hardware_vin_val)
-        
-        # Check color beep condition after saving or updating
-        if (should_save or (existing_scan_id and ans)):
-            if not color_val:
-                # Color is empty Beep
-                trigger_beep("empty_color")
-            else:
-                # Successful scan Beep
-                trigger_beep("success")
-        
-        if should_save or (existing_scan_id and ans):
-            # Update UI thread-safely
-            self.root.after(0, self._update_ui_after_scan, {
-                "image_path": file_path,
-                "vin": vin_val,
-                "color": color_val,
-                "processing_time": processing_time
-            })
+        # Update UI thread-safely
+        self.root.after(0, self._update_ui_after_scan, {
+            "image_path": file_path,
+            "vin": vin_val,
+            "color": color_val,
+            "processing_time": processing_time
+        })
 
     def process_queue(self):
         while self.upload_queue:
