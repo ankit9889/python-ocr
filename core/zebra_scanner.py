@@ -44,9 +44,6 @@ class ZebraEvents:
         """Triggered automatically by the Zebra scanner when an image is captured."""
         logger.info("\n[Zebra] Image captured! Saving to disk...")
         try:
-            # Disable scanner instantly to prevent double scans during processing
-            scanner_manager.disable_scanner()
-            
             # sfsaImageData is a memoryview of the raw image bytes (JPEG format)
             image_bytes = bytes(sfsaImageData)
             

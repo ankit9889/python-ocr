@@ -36,6 +36,13 @@ class ZebraScannerHandler(FileSystemEventHandler):
         
         def run_processing():
             try:
+                from core.zebra_scanner import scanner_manager
+                scanner_manager.disable_scanner()
+
+                # Tell app processing started
+                if hasattr(self, 'app') and self.app:
+                    self.app.is_processing = True
+                
                 # Wait a bit for the file to finish writing to disk
                 time.sleep(1.0)
                 logger.info(f"Watchdog picked up new image: {file_path}")
