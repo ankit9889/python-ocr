@@ -69,11 +69,12 @@ class ScannerApp:
         bottom_frame = tk.Frame(self.root)
         bottom_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
-        columns = ("chk", "id", "timestamp", "vin", "color", "time_s", "image")
+        columns = ("chk", "id", "timestamp", "hardware_vin", "vin", "color", "time_s", "image")
         self.tree = ttk.Treeview(bottom_frame, columns=columns, show="headings")
         self.tree.heading("chk", text="[ ]")
         self.tree.heading("id", text="ID")
         self.tree.heading("timestamp", text="Time")
+        self.tree.heading("hardware_vin", text="Vin Picked By hardware")
         self.tree.heading("vin", text="VIN")
         self.tree.heading("color", text="Color")
         self.tree.heading("time_s", text="Scan Time (s)")
@@ -82,6 +83,7 @@ class ScannerApp:
         self.tree.column("chk", width=40, anchor=tk.CENTER)
         self.tree.column("id", width=50, anchor=tk.CENTER)
         self.tree.column("timestamp", width=150, anchor=tk.CENTER)
+        self.tree.column("hardware_vin", width=180, anchor=tk.CENTER)
         self.tree.column("vin", width=180, anchor=tk.CENTER)
         self.tree.column("color", width=180, anchor=tk.CENTER)
         self.tree.column("time_s", width=100, anchor=tk.CENTER)
@@ -147,6 +149,7 @@ class ScannerApp:
                 "[ ]",
                 scan["id"],
                 scan["timestamp"],
+                scan.get("hardware_vin", ""),
                 scan["vin"],
                 scan["color"],
                 f"{scan.get('processing_time', 0.0):.2f}",

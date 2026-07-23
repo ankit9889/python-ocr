@@ -26,6 +26,8 @@ def init_db():
         columns = [col[1] for col in cursor.fetchall()]
         if "processing_time" not in columns:
             cursor.execute("ALTER TABLE scans ADD COLUMN processing_time REAL DEFAULT 0.0")
+        if "hardware_vin" not in columns:
+            cursor.execute("ALTER TABLE scans ADD COLUMN hardware_vin TEXT DEFAULT ''")
             
         conn.commit()
         conn.close()
@@ -33,7 +35,7 @@ def init_db():
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
 
-def save_scan(image_path: str, vin: str, color: str, processing_time: float = 0.0):
+def save_scan(image_path: str, vin: str, color: str, processing_time: float = 0.0, hardware_vin: str = ""):
     """Saves a scan result into the database."""
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -42,14 +44,15 @@ def save_scan(image_path: str, vin: str, color: str, processing_time: float = 0.
         
         vin_val = vin if vin else ""
         color_val = color if color else ""
+        hw_vin_val = hardware_vin if hardware_vin else ""
         
         cursor.execute('''
-            INSERT INTO scans (timestamp, image_path, vin, color, processing_time)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (timestamp, image_path, vin_val, color_val, processing_time))
+            INSERT INTO scans (timestamp, image_path, vin, color, processing_time, hardware_vin)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (timestamp, image_path, vin_val, color_val, processing_time, hw_vin_val))
         conn.commit()
         conn.close()
-        logger.info(f"Scan saved to DB: VIN={vin_val}, Color={color_val}, Time={processing_time:.2f}s")
+        logger.info(f"Scan saved to DB: HW_VIN={hw_vin_val}, VIN={vin_val}, Color={color_val}, Time={processing_time:.2f}s")
     except Exception as e:
         logger.error(f"Failed to save scan to DB: {e}")
 
@@ -59,7 +62,7 @@ def get_recent_scans(limit: int = 50):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id, timestamp, image_path, vin, color, processing_time
+            SELECT id, timestamp, image_path, vin, color, processing_time, hardware_vin
             FROM scans 
             ORDER BY timestamp DESC 
             LIMIT ?
@@ -76,7 +79,8 @@ def get_recent_scans(limit: int = 50):
                 "image_path": row[2],
                 "vin": row[3],
                 "color": row[4],
-                "processing_time": row[5] if len(row) > 5 and row[5] is not None else 0.0
+                "processing_time": row[5] if len(row) > 5 and row[5] is not None else 0.0,
+                "hardware_vin": row[6] if len(row) > 6 and row[6] is not None else ""
             })
         return results
     except Exception as e:
