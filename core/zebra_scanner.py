@@ -38,9 +38,15 @@ class ZebraEvents:
                 LATEST_HARDWARE_VIN = decoded_string
                 logger.info(f"Zebra SDK Extracted VIN: {LATEST_HARDWARE_VIN}")
                 
-                # Automatically trigger an image capture right after reading the barcode
-                # This ensures we always get a photo for color extraction, regardless of 123Scan settings
-                scanner_manager.capture_image()
+                # Debounce image capture to prevent spamming if the scanner reads the barcode multiple times
+                current_time = time.time()
+                if not hasattr(self, 'last_barcode_time') or (current_time - self.last_barcode_time > 2.0):
+                    self.last_barcode_time = current_time
+                    logger.info("Requesting hardware to snap an image...")
+                    scanner_manager.capture_image()
+                    # We can also disable the scanner here to stop further barcode decodes 
+                    # while we wait for the image, but we MUST do it after capturing.
+                    scanner_manager.disable_scanner()
         except Exception as e:
             logger.error(f"Error parsing OnBarcodeEvent XML: {e}")
 
@@ -183,7 +189,7 @@ class ZebraScannerManager:
     def capture_image(self):
         if not self.ccore or not self.is_connected:
             return False
-        in_xml = f"<inArgs><scannerID>{self.scanner_id}</scannerID></inArgs>"
+        in_xml = f"<inArgs><scannerID>{self.scanner_id}</scannerID><cmdArgs></cmdArgs></inArgs>"
         self.command_queue.put({"type": "opcode", "opcode": 2011, "in_xml": in_xml})
         return True
 
