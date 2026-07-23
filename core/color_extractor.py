@@ -113,8 +113,8 @@ def extract_color(image: np.ndarray, ocr_items: list[dict] | None = None) -> dic
     elif hue < 160: visual_name = "purple"
     else: visual_name = "red"
 
-    if name is None:
-        name = visual_name
+    # if name is None:
+    #     name = visual_name
 
     return {
         "value": name,

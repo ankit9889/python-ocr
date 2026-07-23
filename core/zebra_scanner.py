@@ -111,20 +111,32 @@ class ZebraScannerManager:
             except Exception as e:
                 logger.warning(f"Could not discover scanner ID, defaulting to 1: {e}")
             
-            # Register for events (Opcode 1001)
-            # 1 = Barcode, 2 = Image
-            in_xml = """<inArgs>
-                          <cmdArgs>
-                            <arg-int>2</arg-int>
-                            <arg-int>1,2</arg-int>
-                          </cmdArgs>
-                        </inArgs>"""
+            # Register for Barcode events (Opcode 1001, Event 1)
+            in_xml_barcode = """<inArgs>
+                                  <cmdArgs>
+                                    <arg-int>1</arg-int>
+                                    <arg-int>1</arg-int>
+                                  </cmdArgs>
+                                </inArgs>"""
             try:
-                self.ccore.ExecCommand(1001, in_xml, "", 0)
-                logger.info("Successfully registered for Zebra SDK Barcode and Image events.")
+                self.ccore.ExecCommand(1001, in_xml_barcode, "", 0)
+                logger.info("Successfully registered for Zebra SDK Barcode events.")
+            except Exception as e:
+                logger.error(f"Failed to register for Barcode events: {e}")
+
+            # Register for Image events (Opcode 1001, Event 2)
+            in_xml_image = """<inArgs>
+                                  <cmdArgs>
+                                    <arg-int>1</arg-int>
+                                    <arg-int>2</arg-int>
+                                  </cmdArgs>
+                                </inArgs>"""
+            try:
+                self.ccore.ExecCommand(1001, in_xml_image, "", 0)
+                logger.info("Successfully registered for Zebra SDK Image events.")
                 self.is_connected = True
             except Exception as e:
-                logger.error(f"Failed to register for events: {e}")
+                logger.error(f"Failed to register for Image events: {e}")
             
             # Keep the message pump running to receive events
             while True:
@@ -180,8 +192,8 @@ def trigger_beep(condition: str):
     """
     success = False
     if condition == "success":
-        # 0 = One short high beep
-        success = scanner_manager.hardware_beep(0)
+        # 2 = Two short high beeps
+        success = scanner_manager.hardware_beep(2)
         if not success:
             winsound.Beep(2500, 150)
             
