@@ -111,32 +111,20 @@ class ZebraScannerManager:
             except Exception as e:
                 logger.warning(f"Could not discover scanner ID, defaulting to 1: {e}")
             
-            # Register for Barcode events (Opcode 1001, Event 1)
-            in_xml_barcode = """<inArgs>
-                                  <cmdArgs>
-                                    <arg-int>1</arg-int>
-                                    <arg-int>1</arg-int>
-                                  </cmdArgs>
-                                </inArgs>"""
+            # Register for events (Opcode 1001)
+            # 1 = Barcode, 2 = Image
+            in_xml = """<inArgs>
+                          <cmdArgs>
+                            <arg-int>2</arg-int>
+                            <arg-int>1,2</arg-int>
+                          </cmdArgs>
+                        </inArgs>"""
             try:
-                self.ccore.ExecCommand(1001, in_xml_barcode, "", 0)
-                logger.info("Successfully registered for Zebra SDK Barcode events.")
-            except Exception as e:
-                logger.error(f"Failed to register for Barcode events: {e}")
-
-            # Register for Image events (Opcode 1001, Event 2)
-            in_xml_image = """<inArgs>
-                                  <cmdArgs>
-                                    <arg-int>1</arg-int>
-                                    <arg-int>2</arg-int>
-                                  </cmdArgs>
-                                </inArgs>"""
-            try:
-                self.ccore.ExecCommand(1001, in_xml_image, "", 0)
-                logger.info("Successfully registered for Zebra SDK Image events.")
+                self.ccore.ExecCommand(1001, in_xml, "", 0)
+                logger.info("Successfully registered for Zebra SDK Barcode and Image events.")
                 self.is_connected = True
             except Exception as e:
-                logger.error(f"Failed to register for Image events: {e}")
+                logger.error(f"Failed to register for events: {e}")
             
             # Keep the message pump running to receive events
             while True:
