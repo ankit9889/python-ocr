@@ -37,6 +37,10 @@ class ZebraEvents:
                     
                 LATEST_HARDWARE_VIN = decoded_string
                 logger.info(f"Zebra SDK Extracted VIN: {LATEST_HARDWARE_VIN}")
+                
+                # Automatically trigger an image capture right after reading the barcode
+                # This ensures we always get a photo for color extraction, regardless of 123Scan settings
+                scanner_manager.capture_image()
         except Exception as e:
             logger.error(f"Error parsing OnBarcodeEvent XML: {e}")
 
@@ -174,6 +178,13 @@ class ZebraScannerManager:
             return False
         in_xml = f"<inArgs><scannerID>{self.scanner_id}</scannerID><cmdArgs></cmdArgs></inArgs>"
         self.command_queue.put({"type": "opcode", "opcode": 2014, "in_xml": in_xml})
+        return True
+
+    def capture_image(self):
+        if not self.ccore or not self.is_connected:
+            return False
+        in_xml = f"<inArgs><scannerID>{self.scanner_id}</scannerID></inArgs>"
+        self.command_queue.put({"type": "opcode", "opcode": 2011, "in_xml": in_xml})
         return True
 
     def _execute_beep(self, beep_code):
