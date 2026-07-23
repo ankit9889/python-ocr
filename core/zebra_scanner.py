@@ -1,6 +1,7 @@
 import logging
 import threading
 import time
+import queue
 import xml.etree.ElementTree as ET
 import winsound
 
@@ -39,6 +40,7 @@ class ZebraScannerManager:
         self.ccore = None
         self.scanner_id = 1
         self.is_connected = False
+        self.command_queue = queue.Queue()
         
         # Start the background thread for COM message pumping
         self._thread = threading.Thread(target=self._run_com_loop, daemon=True)
@@ -77,11 +79,12 @@ class ZebraScannerManager:
                 # res is usually a tuple: (numberOfScanners, outXML, status)
                 if isinstance(res, tuple) and len(res) >= 2:
                     out_xml = res[1]
-                    root = ET.fromstring(out_xml)
-                    first_scanner = root.find('.//scannerID')
-                    if first_scanner is not None:
-                        self.scanner_id = int(first_scanner.text)
-                        logger.info(f"Found active scanner ID: {self.scanner_id}")
+                    if out_xml:
+                        root = ET.fromstring(out_xml)
+                        first_scanner = root.find('.//scannerID')
+                        if first_scanner is not None:
+                            self.scanner_id = int(first_scanner.text)
+                            logger.info(f"Found active scanner ID: {self.scanner_id}")
             except Exception as e:
                 logger.warning(f"Could not discover scanner ID, defaulting to 1: {e}")
             
@@ -103,6 +106,15 @@ class ZebraScannerManager:
             # Keep the message pump running to receive events
             while True:
                 pythoncom.PumpWaitingMessages()
+                
+                # Check for thread-safe commands
+                try:
+                    cmd = self.command_queue.get_nowait()
+                    if cmd["type"] == "beep":
+                        self._execute_beep(cmd["beep_code"])
+                except queue.Empty:
+                    pass
+                    
                 time.sleep(0.1)
                 
         except Exception as e:
@@ -116,9 +128,7 @@ class ZebraScannerManager:
         LATEST_HARDWARE_VIN = ""
         return vin
 
-    def hardware_beep(self, beep_code):
-        if not self.ccore or not self.is_connected:
-            return False
+    def _execute_beep(self, beep_code):
         try:
             in_xml = f"""<inArgs>
                             <scannerID>{self.scanner_id}</scannerID>
@@ -128,10 +138,15 @@ class ZebraScannerManager:
                          </inArgs>"""
             # Opcode 6000 = Action Beep
             self.ccore.ExecCommand(6000, in_xml, "", 0)
-            return True
         except Exception as e:
-            logger.error(f"Failed to send hardware beep command: {e}")
+            logger.error(f"Failed to execute beep command on COM thread: {e}")
+
+    def hardware_beep(self, beep_code):
+        if not self.ccore or not self.is_connected:
             return False
+        # Push beep command to the COM thread's queue to avoid marshalling errors
+        self.command_queue.put({"type": "beep", "beep_code": beep_code})
+        return True
 
 scanner_manager = ZebraScannerManager()
 
