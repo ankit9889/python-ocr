@@ -111,9 +111,14 @@ def _get_engine(preference: str | None = None) -> Any:
         
         # Ensure base models are downloaded BEFORE initializing ONNX/OpenVINO
         from core.settings import load_settings
+        import os
         if load_settings().get("engine") in ["onnx", "openvino"]:
-            print("[OCR Engine] Ensuring base models are downloaded...")
-            _create_paddle_ocr("cpu", force_default=True)
+            home = os.path.expanduser('~')
+            det_dir = os.path.join(home, '.paddleocr', 'whl', 'det', 'en', 'en_PP-OCRv3_det_infer')
+            rec_dir = os.path.join(home, '.paddleocr', 'whl', 'rec', 'en', 'en_PP-OCRv4_rec_infer')
+            if not os.path.exists(det_dir) or not os.path.exists(rec_dir):
+                print("[OCR Engine] Ensuring base models are downloaded...")
+                _create_paddle_ocr("cpu", force_default=True)
             
         if target_device == "gpu":
             try:
