@@ -39,10 +39,26 @@ class ScannerApp:
         # Load initial data
         self.refresh_table()
 
+        # Start periodic hardware status check
+        self.update_hardware_status()
+
+    def update_hardware_status(self):
+        if scanner_manager.is_connected:
+            self.hardware_status_lbl.config(text="🟢 Hardware: Connected (SNAPI)", fg="green")
+        else:
+            self.hardware_status_lbl.config(text="🔴 Hardware: Disconnected", fg="red")
+        
+        # Check again every 2 seconds
+        self.root.after(2000, self.update_hardware_status)
+
     def build_ui(self):
         # Top Frame for Actions
         top_frame = tk.Frame(self.root, pady=10)
         top_frame.pack(fill=tk.X)
+        
+        # Hardware SNAPI Status Indicator
+        self.hardware_status_lbl = tk.Label(top_frame, text="🔴 Hardware: Disconnected", fg="red", font=("Arial", 10, "bold"))
+        self.hardware_status_lbl.pack(side=tk.RIGHT, padx=20)
 
         # Upload Button
         self.upload_btn = tk.Button(top_frame, text="Upload Images", command=self.upload_images, bg="#4CAF50", fg="white", font=("Arial", 11, "bold"))
