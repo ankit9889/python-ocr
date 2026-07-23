@@ -64,9 +64,41 @@ class ScannerApp:
         self.settings_btn = tk.Button(top_frame, text="⚙️ Settings", command=self.open_settings_dialog, bg="#607D8B", fg="white", font=("Arial", 11, "bold"))
         self.settings_btn.pack(side=tk.LEFT, padx=5)
 
+        # Beep Tester Frame
+        beep_frame = tk.Frame(top_frame)
+        beep_frame.pack(side=tk.LEFT, padx=10)
+
+        self.beep_var = tk.StringVar()
+        self.beep_options = {
+            "0: 1 Short High (Default)": 0,
+            "1: 2 Short High": 1,
+            "2: 3 Short High": 2,
+            "3: 4 Short High": 3,
+            "4: 5 Short High": 4,
+            "5: 1 Short Low": 5,
+            "6: 2 Short Low": 6,
+            "7: 3 Short Low": 7,
+            "8: 4 Short Low": 8,
+            "9: 5 Short Low": 9,
+            "10: 1 Long High": 10,
+            "11: 2 Long High": 11,
+            "12: 3 Long High": 12,
+            "13: Fast Warble (Error)": 13,
+            "14: 5 Long High": 14,
+            "15: 1 Long Low": 15,
+            "16: Low-High (Empty)": 16,
+            "17: High-Low": 17
+        }
+        self.beep_cb = ttk.Combobox(beep_frame, textvariable=self.beep_var, values=list(self.beep_options.keys()), state="readonly", width=22)
+        self.beep_cb.current(0)
+        self.beep_cb.pack(side=tk.LEFT)
+
+        self.test_beep_btn = tk.Button(beep_frame, text="🔊 Test Beep", command=self.test_hardware_beep, bg="#9C27B0", fg="white", font=("Arial", 9, "bold"))
+        self.test_beep_btn.pack(side=tk.LEFT, padx=5)
+
         # Status Label
         self.status_lbl = tk.Label(top_frame, text="Ready.", fg="blue", font=("Arial", 10))
-        self.status_lbl.pack(side=tk.RIGHT, padx=20)
+        self.status_lbl.pack(side=tk.RIGHT, padx=10)
 
         # Bottom Frame for Table
         bottom_frame = tk.Frame(self.root)
@@ -196,6 +228,16 @@ class ScannerApp:
             self.is_scanner_connected = False
             self.scanner_btn.config(text="Connect Hardware Scanner", bg="#2196F3")
             self.status_lbl.config(text="Scanner Disconnected.", fg="blue")
+
+    def test_hardware_beep(self):
+        selected = self.beep_var.get()
+        if selected in self.beep_options:
+            beep_code = self.beep_options[selected]
+            success = scanner_manager.hardware_beep(beep_code)
+            if not success:
+                messagebox.showwarning("Scanner Not Ready", "Hardware scanner is not connected or COM object not ready.\\nPlease make sure 123Scan is closed and SDK is installed.")
+            else:
+                self.status_lbl.config(text=f"Tested beep: {selected}", fg="green")
 
     def upload_images(self):
         file_paths = filedialog.askopenfilenames(
