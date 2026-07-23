@@ -126,6 +126,9 @@ class ZebraScannerManager:
                 self.ccore.ExecCommand(1001, in_xml, "", 0)
                 logger.info("Successfully registered for Zebra SDK Barcode and Image events.")
                 self.is_connected = True
+                
+                # Make sure the scanner is enabled on startup (in case it was stuck disabled from a previous crash)
+                self.enable_scanner()
             except Exception as e:
                 logger.error(f"Failed to register for events: {e}")
             
